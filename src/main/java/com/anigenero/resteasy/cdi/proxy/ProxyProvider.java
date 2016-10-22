@@ -1,6 +1,6 @@
-package com.cunae.cdi.resteasy.proxy;
+package com.anigenero.resteasy.cdi.proxy;
 
-import com.cunae.cdi.resteasy.proxy.annotation.ResteasyProxy;
+import com.anigenero.resteasy.cdi.proxy.annotation.ResteasyProxy;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;

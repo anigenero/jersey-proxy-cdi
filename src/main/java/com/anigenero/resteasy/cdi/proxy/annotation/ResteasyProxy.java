@@ -1,4 +1,4 @@
-package com.cunae.cdi.resteasy.proxy.annotation;
+package com.anigenero.resteasy.cdi.proxy.annotation;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

@@ -9,7 +9,7 @@ This library provides a quick, easy way to inject RESTeasy proxies into your pro
 Java Implementation
 -------------------
 
-Create the java interface for the proxy, marked with the `com.aaa.cdi.resteasy.ResteasyProxy` annotation.
+Create the java interface for the proxy, marked with the `com.anigenero.resteasy.cdi.proxy.ResteasyProxy` annotation.
 
 ```java
 @ResteasyProxy(name = "myproxy", urlPrefix = "/rs")

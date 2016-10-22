@@ -1,4 +1,4 @@
-package com.cunae.cdi.resteasy.proxy.annotation;
+package com.anigenero.resteasy.cdi.proxy.annotation;
 
 import javax.inject.Qualifier;
 import java.lang.annotation.ElementType;

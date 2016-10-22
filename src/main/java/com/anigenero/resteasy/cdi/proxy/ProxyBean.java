@@ -1,7 +1,7 @@
-package com.cunae.cdi.resteasy.proxy;
+package com.anigenero.resteasy.cdi.proxy;
 
-import com.cunae.cdi.resteasy.proxy.annotation.Proxy;
-import com.cunae.cdi.resteasy.proxy.annotation.ResteasyProxy;
+import com.anigenero.resteasy.cdi.proxy.annotation.ResteasyProxy;
+import com.anigenero.resteasy.cdi.proxy.annotation.Proxy;
 
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
