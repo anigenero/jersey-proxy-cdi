@@ -1,7 +1,10 @@
+[![Build Status](https://travis-ci.org/anigenero/resteasy-proxy-cdi.svg?branch=master)](https://travis-ci.org/anigenero/resteasy-proxy-cdi)
 
 resteasy-proxy-cdi
 ==================
 This library provides a quick, easy way to inject RESTeasy proxies into your project, with minimal setup.
+
+**Note:** this project is still in very early stages of development. Do not use in production.
 
 Java Implementation
 -------------------
