@@ -29,6 +29,7 @@ public interface FooProxy {
 | **urlPrefix** | `java.lang.String` | *(optional)* the path prefix (e.g. if you declare several proxy classes for the same name, you might need each one to access a different root path) |
 | **requestFilter** | `javax.ws.rs.client.ClientRequestFilter` | *(optional)* a request filter |
 | **responseFilter** | `javax.ws.rs.client.ClientResponseFilter` | *(optional)* a response filter |
+| **credentialsProvider** | `org.apache.http.client.CredentialsProvider` | *(optional)* |
 
 It's then as simple as creating the injection point for the proxy in your class.
 ```java

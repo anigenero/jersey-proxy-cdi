@@ -11,8 +11,6 @@ import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
 import org.jboss.resteasy.client.jaxrs.ResteasyWebTarget;
 import org.jboss.resteasy.client.jaxrs.engines.ApacheHttpClient4Engine;
@@ -24,6 +22,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import javax.enterprise.context.Dependent;
 import javax.enterprise.context.spi.CreationalContext;
@@ -35,7 +35,7 @@ import javax.ws.rs.client.ClientResponseFilter;
 
 public class ProxyBean implements Bean, Serializable {
 
-    private static final Logger log = LogManager.getLogger(ProxyBean.class);
+    private static final Logger logger = Logger.getLogger(ProxyBean.class.toString());
 
     private static final String HOST_SUFFIX = "host";
     private static final String PASSWORD_SUFFIX = "password";
@@ -49,6 +49,11 @@ public class ProxyBean implements Bean, Serializable {
 
     private final Class<Type> type;
 
+    /**
+     * Creates the proxy bean with the specified type
+     *
+     * @param type {@link Class} of {@link Type}
+     */
     public ProxyBean(Class<Type> type) {
         this.type = type;
     }
@@ -121,37 +126,38 @@ public class ProxyBean implements Bean, Serializable {
         String proxyName = proxyAnnotation.name();
         String host = getProxyValue(proxyName, HOST_SUFFIX, null);
         if (host == null || host.isEmpty()) {
-            log.error("Could not create proxy for {} because no host is set", proxyClass);
+            logger.log(Level.SEVERE, "Could not create proxy for '" + proxyAnnotation.name() + "' because no host is set");
             return null;
         }
 
-        ProxySettings proxySettings = new ProxySettings();
+        ProxyConfiguration proxyConfiguration = new ProxyConfiguration();
 
         try {
             if (!ClientRequestFilter.class.equals(proxyAnnotation.requestFilter())) {
-                proxySettings.setRequestFilter(proxyAnnotation.requestFilter().newInstance());
+                proxyConfiguration.setRequestFilter(proxyAnnotation.requestFilter().newInstance());
             }
         } catch (Exception e) {
-            log.error("Could not instantiate ClientRequestFilter {}", proxyName, e);
+            logger.log(Level.SEVERE, "Could not instantiate ClientRequestFilter for proxy '" + proxyName + "'", e);
         }
 
         try {
             if (!ClientResponseFilter.class.equals(proxyAnnotation.responseFilter())) {
-                proxySettings.setResponseFilter(proxyAnnotation.responseFilter().newInstance());
+                proxyConfiguration.setResponseFilter(proxyAnnotation.responseFilter().newInstance());
             }
         } catch (Exception e) {
-            log.error("Could not instantiate ClientResponseFilter for {}", proxyName, e);
+            logger.log(Level.SEVERE, "Could not instantiate ClientResponseFilter for proxy '" + proxyName + "'", e);
         }
 
-        proxySettings.setHost(host);
-        proxySettings.setUrlPrefix(getProxyValue(proxyName, URL_SUFFIX, null));
-        proxySettings.setTimeout(getProxyValue(proxyName, TIMEOUT_SUFFIX, DEFAULT_TIMEOUT));
-        proxySettings.setPort(getProxyValue(proxyName, PORT_SUFFIX, DEFAULT_PORT));
+        proxyConfiguration.setHost(host);
+        proxyConfiguration.setUrlPrefix(getProxyValue(proxyName, URL_SUFFIX, null));
+        proxyConfiguration.setTimeout(getProxyValue(proxyName, TIMEOUT_SUFFIX, DEFAULT_TIMEOUT));
+        proxyConfiguration.setPort(getProxyValue(proxyName, PORT_SUFFIX, DEFAULT_PORT));
 
-        proxySettings.setUsername(getProxyValue(proxyName, USERNAME_SUFFIX, null));
-        proxySettings.setPassword(getProxyValue(proxyName, PASSWORD_SUFFIX, null));
+        proxyConfiguration.setUsername(getProxyValue(proxyName, USERNAME_SUFFIX, null));
+        proxyConfiguration.setPassword(getProxyValue(proxyName, PASSWORD_SUFFIX, null));
+        proxyConfiguration.setCredentialsProvider(proxyAnnotation.credentialsProvider());
 
-        return createProxy(proxyClass, proxySettings);
+        return createProxy(proxyClass, proxyConfiguration);
 
     }
 
@@ -190,6 +196,7 @@ public class ProxyBean implements Bean, Serializable {
 
             String propertyName = String.format("restproxy.%s.%s", proxyName, propertySuffix);
             String value = System.getProperty(propertyName);
+
             if (value != null && !value.isEmpty()) {
                 return value;
             } else {
@@ -197,8 +204,7 @@ public class ProxyBean implements Bean, Serializable {
             }
 
         } catch (Exception e) {
-            log.warn("Could not createProxy the proxy value {} because of an error: {}", propertySuffix,
-                    e.getMessage());
+            logger.log(Level.SEVERE, "Could not createProxy the proxy value '" + propertySuffix + "' because of an error: " + e.getMessage());
             return defaultValue;
         }
 
@@ -208,19 +214,51 @@ public class ProxyBean implements Bean, Serializable {
      * Creates the proxy
      *
      * @param proxyClass    {@link Class} the proxy class
-     * @param proxySettings {@link ProxySettings}
+     * @param configuration {@link ProxyConfiguration}
      * @return T
      */
-    private <T> T createProxy(Class<T> proxyClass, ProxySettings proxySettings) {
+    private <T> T createProxy(Class<T> proxyClass, ProxyConfiguration configuration) {
 
         // createProxy the URL and ensure that it's not empty
         String url = proxyClass.getAnnotation(ResteasyProxy.class).urlPrefix();
         if (url.isEmpty()) {
-            log.error("Unable to create RESTeasy proxy {}: Missing @Path URL", proxyClass.getSimpleName());
+            logger.log(Level.SEVERE, "Unable to create RESTEasy proxy " + proxyClass.getSimpleName() + ": Missing URL pefix");
             return null;
         }
 
-        String urlPrefix = proxySettings.getUrlPrefix();
+        generateUrlPrefix(configuration);
+
+        try {
+
+            RequestConfig.Builder requestBuilder = RequestConfig.custom();
+
+            buildConnectionTimeouts(requestBuilder, configuration);
+
+            HttpClientBuilder builder = HttpClientBuilder.create();
+            builder.setDefaultRequestConfig(requestBuilder.build());
+
+            // configure the authentication (if applicable)
+            configureAuthentication(builder, configuration);
+            // configure the client builder
+            createClientBuilder(builder, configuration);
+
+            return createClientBuilder(builder, configuration).build().target(configuration.getUrlPrefix()).proxy(proxyClass);
+
+        } catch (Throwable e) {
+            logger.log(Level.SEVERE, "Unable to create proxy " + proxyClass.getSimpleName() + ": " + e.getMessage(), e);
+            return null;
+        }
+
+    }
+
+    /**
+     * Generates the URL prefix for the proxy
+     *
+     * @param configuration {@link ProxyConfiguration}
+     */
+    private void generateUrlPrefix(ProxyConfiguration configuration) {
+
+        String urlPrefix = configuration.getUrlPrefix();
         if (urlPrefix != null) {
             if (!urlPrefix.startsWith("/")) {
                 urlPrefix = "/" + urlPrefix;
@@ -229,43 +267,28 @@ public class ProxyBean implements Bean, Serializable {
             urlPrefix = "";
         }
 
-        try {
+        configuration.setUrlPrefix(urlPrefix);
 
-            RequestConfig.Builder requestBuilder = RequestConfig.custom();
-            requestBuilder.setConnectTimeout(proxySettings.getTimeout() / 2);
-            requestBuilder.setConnectionRequestTimeout(proxySettings.getTimeout() / 2);
+    }
 
-            if (proxySettings.getHost() != null && proxySettings.getPort() > 1 && proxySettings.getPort() <= 65536) {
+    /**
+     * Builds the connection timeouts for the proxy
+     *
+     * @param requestBuilder {@link RequestConfig.Builder}
+     * @param configuration  {@link ProxyConfiguration}
+     */
+    private void buildConnectionTimeouts(RequestConfig.Builder requestBuilder, ProxyConfiguration configuration) {
 
-                HttpHost proxy = new HttpHost(proxySettings.getHost(), proxySettings.getPort());
-                requestBuilder.setProxy(proxy);
-                urlPrefix = proxy.toString() + urlPrefix;
+        requestBuilder.setConnectTimeout(configuration.getTimeout() / 2);
+        requestBuilder.setConnectionRequestTimeout(configuration.getTimeout() / 2);
 
-            }
+        if (configuration.getHost() != null && configuration.getPort() > 1 && configuration.getPort() <= 65536) {
 
-            HttpClientBuilder builder = HttpClientBuilder.create();
-            builder.setDefaultRequestConfig(requestBuilder.build());
+            HttpHost httpHost = new HttpHost(configuration.getHost(), configuration.getPort());
+            requestBuilder.setProxy(httpHost);
 
-            // configure the authentication (if applicable)
-            configureAuthentication(builder, proxySettings);
+            configuration.setUrlPrefix(httpHost.toString() + configuration.getUrlPrefix());
 
-            ResteasyClientBuilder resteasyClientBuilder = new ResteasyClientBuilder();
-            resteasyClientBuilder.httpEngine(new ApacheHttpClient4Engine(builder.build()));
-
-            if (proxySettings.getRequestFilter() != null) {
-                resteasyClientBuilder.register(proxySettings.getRequestFilter());
-            }
-
-            if (proxySettings.getResponseFilter() != null) {
-                resteasyClientBuilder.register(proxySettings.getResponseFilter());
-            }
-
-            ResteasyWebTarget target = resteasyClientBuilder.build().target(urlPrefix);
-            return target.proxy(proxyClass);
-
-        } catch (Throwable e) {
-            log.error("Unable to create proxy {}: {}", proxyClass.getSimpleName(), e.getMessage(), e);
-            return null;
         }
 
     }
@@ -274,101 +297,55 @@ public class ProxyBean implements Bean, Serializable {
      * Configures the authentication for the proxy, if applicable (username and password are set)
      *
      * @param builder       {@link HttpClientBuilder}
-     * @param proxySettings {@link ProxySettings}
+     * @param configuration {@link ProxyConfiguration}
      */
-    private void configureAuthentication(HttpClientBuilder builder, ProxySettings proxySettings) {
+    private void configureAuthentication(HttpClientBuilder builder, ProxyConfiguration configuration) {
 
-        if (proxySettings.getUsername() != null && proxySettings.getPassword() != null) {
+        if (configuration.getUsername() != null && configuration.getPassword() != null) {
 
-            Credentials credentials = new UsernamePasswordCredentials(proxySettings.getUsername(),
-                    proxySettings.getPassword());
+            // get the username and password credentials
+            Credentials credentials = new UsernamePasswordCredentials(configuration.getUsername(),
+                    configuration.getPassword());
 
-            CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
-            credentialsProvider.setCredentials(new AuthScope(proxySettings.getHost(), proxySettings.getPort()),
-                    credentials);
+            try {
 
-            builder.setDefaultCredentialsProvider(credentialsProvider);
+                CredentialsProvider credentialsProvider = configuration.getCredentialsProvider().newInstance();
+                credentialsProvider.setCredentials(new AuthScope(configuration.getHost(), configuration.getPort()),
+                        credentials);
+
+                builder.setDefaultCredentialsProvider(credentialsProvider);
+
+            } catch (InstantiationException | IllegalAccessException e) {
+                logger.log(Level.SEVERE, "Could not create credentials provider because of an error", e);
+            }
+
 
         }
 
     }
 
-    private static class ProxySettings {
+    /**
+     * Creates the client builder
+     *
+     * @param httpClientBuilder {@link HttpClientBuilder}
+     * @param configuration     {@link ProxyConfiguration}
+     * @return {@link ResteasyClientBuilder}
+     */
+    private ResteasyClientBuilder createClientBuilder(HttpClientBuilder httpClientBuilder, ProxyConfiguration configuration) {
 
-        private ClientRequestFilter requestFilter;
-        private ClientResponseFilter responseFilter;
+        ResteasyClientBuilder resteasyClientBuilder = new ResteasyClientBuilder();
+        resteasyClientBuilder.httpEngine(new ApacheHttpClient4Engine(httpClientBuilder.build()));
 
-        private String host;
-        private String urlPrefix;
-        private String username;
-        private String password;
-
-        private int port;
-        private int timeout;
-
-        public ClientRequestFilter getRequestFilter() {
-            return requestFilter;
+        if (configuration.getRequestFilter() != null) {
+            resteasyClientBuilder.register(configuration.getRequestFilter());
         }
 
-        public void setRequestFilter(ClientRequestFilter requestFilter) {
-            this.requestFilter = requestFilter;
+        if (configuration.getResponseFilter() != null) {
+            resteasyClientBuilder.register(configuration.getResponseFilter());
         }
 
-        public ClientResponseFilter getResponseFilter() {
-            return responseFilter;
-        }
+        return resteasyClientBuilder;
 
-        public void setResponseFilter(ClientResponseFilter responseFilter) {
-            this.responseFilter = responseFilter;
-        }
-
-        public String getHost() {
-            return host;
-        }
-
-        public void setHost(String host) {
-            this.host = host;
-        }
-
-        public String getUrlPrefix() {
-            return urlPrefix;
-        }
-
-        public void setUrlPrefix(String urlPrefix) {
-            this.urlPrefix = urlPrefix;
-        }
-
-        public String getUsername() {
-            return username;
-        }
-
-        public void setUsername(String username) {
-            this.username = username;
-        }
-
-        public String getPassword() {
-            return password;
-        }
-
-        public void setPassword(String password) {
-            this.password = password;
-        }
-
-        public int getPort() {
-            return port;
-        }
-
-        public void setPort(int port) {
-            this.port = port;
-        }
-
-        public int getTimeout() {
-            return timeout;
-        }
-
-        public void setTimeout(int timeout) {
-            this.timeout = timeout;
-        }
     }
 
 }
