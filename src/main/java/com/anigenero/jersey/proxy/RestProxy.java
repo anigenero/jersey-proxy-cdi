@@ -1,19 +1,18 @@
-package com.anigenero.resteasy.cdi.proxy.annotation;
+package com.anigenero.jersey.proxy;
 
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 
+import javax.ws.rs.client.ClientRequestFilter;
+import javax.ws.rs.client.ClientResponseFilter;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import javax.ws.rs.client.ClientRequestFilter;
-import javax.ws.rs.client.ClientResponseFilter;
-
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE})
-public @interface ResteasyProxy {
+public @interface RestProxy {
 
     /**
      * Sets the name of the proxy that will be used to reference configuration
@@ -23,11 +22,11 @@ public @interface ResteasyProxy {
     String name();
 
     /**
-     * Sets the base path of the proxy (e.g. "/v1")
+     * Gets the host of the
      *
      * @return {@link String}
      */
-    String urlPrefix();
+    String url() default "";
 
     /**
      * The credentials provider
