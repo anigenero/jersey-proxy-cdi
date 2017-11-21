@@ -7,6 +7,6 @@ cache:
     - $HOME/.gradle/caches/
     - $HOME/.gradle/wrapper/
 install:
-  - ./gradlew clean build jacocoTestReport
+  - ./gradlew clean build
 after_success:
   - bash <(curl -s https://codecov.io/bash)
