@@ -1,5 +1,8 @@
 package com.anigenero.jersey.proxy;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import javax.enterprise.context.Dependent;
 import javax.enterprise.event.Observes;
 import javax.enterprise.inject.spi.*;
@@ -9,13 +12,11 @@ import java.lang.reflect.Type;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 @SuppressWarnings("WeakerAccess")
-public class ProxyExtension implements Extension {
+public class JerseyExtension implements Extension {
 
-    private static final Logger logger = Logger.getLogger(ProxyExtension.class.toString());
+    private static final Logger logger = LogManager.getLogger(JerseyExtension.class);
 
     private Set<Bean> proxyBeanSet = new HashSet<>();
 
@@ -26,11 +27,10 @@ public class ProxyExtension implements Extension {
      * @param <T>                  the proxy class type
      */
     @SuppressWarnings("unchecked")
-    public <T> void processAnnotatedType(@Observes ProcessAnnotatedType<T> processAnnotatedType) {
+    protected <T> void processAnnotatedType(@Observes @WithAnnotations({ResourceProxy.class}) ProcessAnnotatedType<T> processAnnotatedType) {
 
-        // if this isn't an interface or doesn't have a @RestProxy annotation, there's nothing for us to do
         Class<T> proxyClass = processAnnotatedType.getAnnotatedType().getJavaClass();
-        if (!proxyClass.isInterface() || !proxyClass.isAnnotationPresent(RestProxy.class)) {
+        if (!proxyClass.isInterface()) {
             return;
         }
 
@@ -40,7 +40,7 @@ public class ProxyExtension implements Extension {
             beanScope = scope.get().getClass();
         }
 
-        logger.log(Level.INFO, "Adding proxy '" + processAnnotatedType.getAnnotatedType().getJavaClass() + "'");
+        logger.info("Adding proxy '{}'", processAnnotatedType.getAnnotatedType().getJavaClass());
 
         // create the bean and add it
         proxyBeanSet.add(new ProxyBean((Class<Type>) processAnnotatedType.getAnnotatedType().getBaseType(), beanScope));
@@ -52,13 +52,20 @@ public class ProxyExtension implements Extension {
     }
 
     /**
-     * Add all the created beans from the ProxyExtension#processAnnotatedType into the
+     * Add all the created beans from the JerseyExtension#processAnnotatedType into the
      * {@link BeanManager}
      *
      * @param afterBeanDiscovery {@link AfterBeanDiscovery}
      */
-    public void afterBeanDiscovery(@Observes AfterBeanDiscovery afterBeanDiscovery) {
+    protected void afterBeanDiscovery(@Observes AfterBeanDiscovery afterBeanDiscovery) {
+
+        if (proxyBeanSet.isEmpty()) {
+            logger.warn("No resource proxies found");
+            return;
+        }
+
         proxyBeanSet.forEach(afterBeanDiscovery::addBean);
+
     }
 
 }

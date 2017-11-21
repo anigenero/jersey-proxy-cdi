@@ -1,8 +1,5 @@
 package com.anigenero.jersey.proxy;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import javax.enterprise.context.spi.CreationalContext;
 import javax.enterprise.inject.Any;
 import javax.enterprise.inject.Default;
@@ -16,10 +13,13 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.LogManager;
+import java.util.logging.Logger;
 
 public class ProxyBean implements Bean, Serializable {
 
-    private static final Logger log = LogManager.getLogger(ProxyBean.class);
+    private static final Logger log = LogManager.getLogManager().getLogger(ProxyBean.class.getName());
 
     private final Class<Type> type;
     private final Class<? extends Annotation> beanScope;
@@ -100,12 +100,12 @@ public class ProxyBean implements Bean, Serializable {
     private <T> T getProxy(Class<T> proxyClass) {
 
 
-        RestProxy proxyAnnotation = proxyClass.getAnnotation(RestProxy.class);
+        ResourceProxy proxyAnnotation = proxyClass.getAnnotation(ResourceProxy.class);
 
         final String proxyName = proxyAnnotation.name();
-        String host = getProxyValue(proxyAnnotation.host());
-        if (host == null || host.isEmpty()) {
-            log.fatal("Could not create proxy for '{}' because no host is set", proxyAnnotation.name());
+        String url = getProxyValue(proxyAnnotation.url());
+        if (url == null || url.isEmpty()) {
+            log.log(Level.SEVERE, "Could not create proxy for '" + proxyAnnotation.name() + "' because no url is set");
             return null;
         }
 
@@ -116,7 +116,7 @@ public class ProxyBean implements Bean, Serializable {
                 builder.setRequestFilter(proxyAnnotation.requestFilter().newInstance());
             }
         } catch (Exception e) {
-            log.fatal("Could not instantiate ClientRequestFilter for proxy '{}'", proxyName, e);
+            log.log(Level.SEVERE, "Could not instantiate ClientRequestFilter for proxy '" + proxyName + "'", e);
         }
 
         try {
@@ -124,14 +124,10 @@ public class ProxyBean implements Bean, Serializable {
                 builder.setResponseFilter(proxyAnnotation.responseFilter().newInstance());
             }
         } catch (Exception e) {
-            log.fatal("Could not instantiate ClientResponseFilter for proxy '{}'", proxyName, e);
+            log.log(Level.SEVERE, "Could not instantiate ClientResponseFilter for proxy '" + proxyName + "'", e);
         }
 
-        builder.setScheme(proxyAnnotation.scheme());
-        builder.setHost(host);
-        builder.setPort(proxyAnnotation.port());
-
-        builder.setUrlPrefix(getProxyValue(proxyAnnotation.urlPrefix()));
+        builder.setUrl(proxyAnnotation.url());
 
 //        builder.setUsername(getProxyValue(proxyAnnotation));
 //        builder.setPassword(getProxyValue(proxyName, PASSWORD_SUFFIX, null));
@@ -163,9 +159,9 @@ public class ProxyBean implements Bean, Serializable {
     private <T> T createProxy(Class<T> proxyClass, RestConfiguration restConfiguration) {
 
         // createProxy the URL and ensure that it's not empty
-        String url = proxyClass.getAnnotation(RestProxy.class).urlPrefix();
+        String url = proxyClass.getAnnotation(ResourceProxy.class).url();
         if (url.isEmpty()) {
-            log.fatal("Unable to create RESTEasy proxy {}: Missing URL pefix", proxyClass.getSimpleName());
+            log.log(Level.SEVERE, "Unable to create RESTEasy proxy " + proxyClass.getSimpleName() + ": Missing URL pefix");
             return null;
         }
 

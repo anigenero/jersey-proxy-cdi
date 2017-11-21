@@ -14,9 +14,7 @@ public class RestConfiguration {
     private ClientResponseFilter responseFilter;
     private Class<? extends CredentialsProvider> credentialsProvider;
 
-    private String scheme = "http";
-    private String host;
-    private String urlPrefix;
+    private String url;
     private String username;
     private String password;
 
@@ -39,16 +37,8 @@ public class RestConfiguration {
         return credentialsProvider;
     }
 
-    public String getScheme() {
-        return scheme;
-    }
-
-    public String getHost() {
-        return host;
-    }
-
-    public String getUrlPrefix() {
-        return urlPrefix;
+    public String getUrl() {
+        return url;
     }
 
     public String getUsername() {
@@ -89,18 +79,8 @@ public class RestConfiguration {
             return this;
         }
 
-        public Builder setScheme(String scheme) {
-            this.restConfiguration.scheme = scheme;
-            return this;
-        }
-
-        public Builder setHost(String host) {
-            this.restConfiguration.host = host;
-            return this;
-        }
-
-        public Builder setUrlPrefix(String urlPrefix) {
-            this.restConfiguration.urlPrefix = urlPrefix;
+        public Builder setUrl(String url) {
+            this.restConfiguration.url = url;
             return this;
         }
 

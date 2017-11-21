@@ -1,7 +1,5 @@
 package com.anigenero.jersey.proxy;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.client.JerseyClient;
@@ -11,11 +9,14 @@ import org.glassfish.jersey.client.proxy.WebResourceFactory;
 import javax.ws.rs.client.Client;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.logging.Level;
+import java.util.logging.LogManager;
+import java.util.logging.Logger;
 
 @SuppressWarnings("WeakerAccess")
 public final class RestProxyFactory {
 
-    private static final Logger log = LogManager.getLogger(RestProxyFactory.class);
+    private static final Logger log = LogManager.getLogManager().getLogger(RestProxyFactory.class.getName());
 
     private RestConfiguration restConfiguration;
 
@@ -32,10 +33,11 @@ public final class RestProxyFactory {
             createClient(restConfiguration);
 
             Client client = createClient(restConfiguration);
-            return WebResourceFactory.newResource(restConfiguration.getProxyClass(), client.target(restConfiguration.getHost()));
+            return WebResourceFactory.newResource(restConfiguration.getProxyClass(), client.target(restConfiguration.getUrl()));
 
         } catch (Exception e) {
-            log.error("Unable to create proxy {}: {}", restConfiguration.getProxyClass().getSimpleName(), e.getMessage(), e);
+            log.log(Level.SEVERE, "Unable to create proxy " + restConfiguration.getProxyClass().getSimpleName() +
+                    ": " + e.getMessage(), e);
             return null;
         }
 
@@ -69,47 +71,12 @@ public final class RestProxyFactory {
         client.property(ClientProperties.READ_TIMEOUT, configuration.getTimeout() / 2);
 
         try {
-            client.target(this.buildUri(configuration));
+            client.target(new URI(configuration.getUrl()));
         } catch (URISyntaxException e) {
-            log.error("Invalid URI for proxy: '{}'", restConfiguration.getProxyClass().getName(), e);
+            log.log(Level.SEVERE, "Invalid URI for proxy: '" + restConfiguration.getProxyClass().getName() + "'", e);
         }
 
         return client;
-
-    }
-
-    /**
-     * Builds the base URI from the configuration
-     *
-     * @param configuration {@link RestConfiguration}
-     * @return {@link URI}
-     * @throws URISyntaxException if the URI is invalid
-     */
-    private URI buildUri(RestConfiguration configuration) throws URISyntaxException {
-
-        final String host = configuration.getHost();
-        final String scheme = configuration.getScheme();
-        final String prefix = this.generateUrlPrefix(configuration.getUrlPrefix());
-
-        final int port = configuration.getPort();
-
-        return new URI(scheme + "://" + host + ":" + port + "/" + prefix);
-
-    }
-
-    /**
-     * Generates the URL prefix
-     *
-     * @param urlPrefix {@link String}
-     * @return {@link String}
-     */
-    private String generateUrlPrefix(String urlPrefix) {
-
-        if (urlPrefix != null && urlPrefix.startsWith("/")) {
-            urlPrefix = urlPrefix.substring(1);
-        }
-
-        return urlPrefix;
 
     }
 

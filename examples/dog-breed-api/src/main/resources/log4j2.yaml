@@ -1,0 +1,34 @@
+Configuration:
+  name: Default
+  status: info
+
+  Properties:
+    Property:
+      name: log-path
+      value: log
+
+  Appenders:
+    Console:
+      name: Console
+      target: SYSTEM_OUT
+      PatternLayout:
+        Pattern: "%d{HH:mm:ss.SSS} [%level] %logger - %msg %ex %n"
+    RollingFile:
+      name: FileAppender
+      filePattern: ${log-path}/vagus.log.%d
+      fileName: ${log-path}/vagus.log
+      PatternLayout:
+        pattern: "[%p] %d{DEFAULT} [%t] %c.%method %msg %ex %n"
+      Policies:
+        SizeBasedTriggeringPolicy:
+          size: 10 MB
+      DefaultRollOverStrategy:
+        max: '30'
+
+  Loggers:
+    AsyncRoot:
+      level: info
+      AppenderRef:
+        - ref: Console
+        - ref: FileAppender
+          level: info
