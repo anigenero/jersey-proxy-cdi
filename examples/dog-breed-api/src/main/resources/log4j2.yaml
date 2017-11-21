@@ -15,8 +15,8 @@ Configuration:
         Pattern: "%d{HH:mm:ss.SSS} [%level] %logger - %msg %ex %n"
     RollingFile:
       name: FileAppender
-      filePattern: ${log-path}/vagus.log.%d
-      fileName: ${log-path}/vagus.log
+      filePattern: ${log-path}/dogs.log.%d
+      fileName: ${log-path}/dogs.log
       PatternLayout:
         pattern: "[%p] %d{DEFAULT} [%t] %c.%method %msg %ex %n"
       Policies:
@@ -27,8 +27,8 @@ Configuration:
 
   Loggers:
     AsyncRoot:
-      level: info
+      level: error
       AppenderRef:
         - ref: Console
         - ref: FileAppender
-          level: info
+          level: error
