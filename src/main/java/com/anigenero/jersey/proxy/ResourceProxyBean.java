@@ -17,9 +17,9 @@ import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
-public class ProxyBean implements Bean, Serializable {
+public class ResourceProxyBean implements Bean, Serializable {
 
-    private static final Logger log = LogManager.getLogManager().getLogger(ProxyBean.class.getName());
+    private static final Logger log = LogManager.getLogManager().getLogger(ResourceProxyBean.class.getName());
 
     private final Class<Type> type;
     private final Class<? extends Annotation> beanScope;
@@ -31,7 +31,7 @@ public class ProxyBean implements Bean, Serializable {
      * @param beanScope {@link Class} of {@link Annotation}
      */
     @SuppressWarnings("WeakerAccess")
-    public ProxyBean(Class<Type> type, Class<? extends Annotation> beanScope) {
+    public ResourceProxyBean(Class<Type> type, Class<? extends Annotation> beanScope) {
         this.beanScope = beanScope;
         this.type = type;
     }
@@ -109,7 +109,7 @@ public class ProxyBean implements Bean, Serializable {
             return null;
         }
 
-        RestConfiguration.Builder builder = new RestConfiguration.Builder(proxyClass);
+        ResourceProxyConfiguration.Builder builder = new ResourceProxyConfiguration.Builder(proxyClass);
 
         try {
             if (!ClientRequestFilter.class.equals(proxyAnnotation.requestFilter())) {
@@ -127,11 +127,11 @@ public class ProxyBean implements Bean, Serializable {
             log.log(Level.SEVERE, "Could not instantiate ClientResponseFilter for proxy '" + proxyName + "'", e);
         }
 
+        if (proxyAnnotation.timeout() < 1) {
+            builder.setTimeout(proxyAnnotation.timeout());
+        }
+
         builder.setUrl(proxyAnnotation.url());
-
-//        builder.setUsername(getProxyValue(proxyAnnotation));
-//        builder.setPassword(getProxyValue(proxyName, PASSWORD_SUFFIX, null));
-
         builder.setCredentialsProvider(proxyAnnotation.credentialsProvider());
 
         return createProxy(proxyClass, builder.build());
@@ -151,12 +151,12 @@ public class ProxyBean implements Bean, Serializable {
     /**
      * Creates the proxy
      *
-     * @param proxyClass        {@link Class} the proxy class
-     * @param restConfiguration {@link RestConfiguration}
+     * @param proxyClass                 {@link Class} the proxy class
+     * @param resourceProxyConfiguration {@link ResourceProxyConfiguration}
      * @return T
      */
     @SuppressWarnings("unchecked")
-    private <T> T createProxy(Class<T> proxyClass, RestConfiguration restConfiguration) {
+    private <T> T createProxy(Class<T> proxyClass, ResourceProxyConfiguration resourceProxyConfiguration) {
 
         // createProxy the URL and ensure that it's not empty
         String url = proxyClass.getAnnotation(ResourceProxy.class).url();
@@ -165,7 +165,7 @@ public class ProxyBean implements Bean, Serializable {
             return null;
         }
 
-        return (T) new RestProxyFactory(restConfiguration).build();
+        return (T) new ResourceProxyFactory(resourceProxyConfiguration).build();
 
     }
 

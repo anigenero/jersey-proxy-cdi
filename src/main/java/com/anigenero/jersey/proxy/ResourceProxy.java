@@ -30,6 +30,13 @@ public @interface ResourceProxy {
     String url() default "";
 
     /**
+     * The timeout for the proxy
+     *
+     * @return int - the timeout, in milliseconds
+     */
+    int timeout() default -1;
+
+    /**
      * The credentials provider
      *
      * @return {@link Class} of {@link CredentialsProvider}

@@ -14,9 +14,9 @@ import java.util.Optional;
 import java.util.Set;
 
 @SuppressWarnings("WeakerAccess")
-public class JerseyExtension implements Extension {
+public class ResourceExtension implements Extension {
 
-    private static final Logger logger = LogManager.getLogger(JerseyExtension.class);
+    private static final Logger log = LogManager.getLogger(ResourceExtension.class);
 
     private Set<Bean> proxyBeanSet = new HashSet<>();
 
@@ -31,28 +31,39 @@ public class JerseyExtension implements Extension {
 
         Class<T> proxyClass = processAnnotatedType.getAnnotatedType().getJavaClass();
         if (!proxyClass.isInterface()) {
+            log.error("Proxy class {} is not an interface", proxyClass.getName());
             return;
         }
 
-        Class<? extends Annotation> beanScope = Dependent.class;
-        Optional<Annotation> scope = determineScope(processAnnotatedType.getAnnotatedType());
-        if (scope.isPresent()) {
-            beanScope = scope.get().getClass();
-        }
+        log.info("Adding proxy '{}'", processAnnotatedType.getAnnotatedType().getJavaClass());
 
-        logger.info("Adding proxy '{}'", processAnnotatedType.getAnnotatedType().getJavaClass());
+        proxyBeanSet.add(new ResourceProxyBean((Class<Type>) processAnnotatedType.getAnnotatedType().getBaseType(),
+                determineScope(processAnnotatedType.getAnnotatedType())));
 
-        // create the bean and add it
-        proxyBeanSet.add(new ProxyBean((Class<Type>) processAnnotatedType.getAnnotatedType().getBaseType(), beanScope));
-
-    }
-
-    public <T> Optional<Annotation> determineScope(AnnotatedType<T> annotatedType) {
-        return annotatedType.getAnnotations().stream().filter(annotation -> annotation.annotationType().getAnnotation(Scope.class) != null).findFirst();
     }
 
     /**
-     * Add all the created beans from the JerseyExtension#processAnnotatedType into the
+     * Determine the scope of the resource proxy. This is done by looping over the scope annotation(s)
+     *
+     * @param annotatedType {@link AnnotatedType}
+     * @param <T>           the annotated class
+     * @return {@link Class} of {@link Annotation}
+     */
+    public <T> Class<? extends Annotation> determineScope(AnnotatedType<T> annotatedType) {
+
+        Optional<Annotation> scope = annotatedType.getAnnotations().stream().filter(annotation -> annotation.annotationType()
+                .getAnnotation(Scope.class) != null).findFirst();
+
+        if (scope.isPresent()) {
+            return scope.get().getClass();
+        } else {
+            return Dependent.class;
+        }
+
+    }
+
+    /**
+     * Add all the created beans from the ResourceExtension#processAnnotatedType into the
      * {@link BeanManager}
      *
      * @param afterBeanDiscovery {@link AfterBeanDiscovery}
@@ -60,7 +71,7 @@ public class JerseyExtension implements Extension {
     protected void afterBeanDiscovery(@Observes AfterBeanDiscovery afterBeanDiscovery) {
 
         if (proxyBeanSet.isEmpty()) {
-            logger.warn("No resource proxies found");
+            log.warn("No resource proxies found");
             return;
         }
 

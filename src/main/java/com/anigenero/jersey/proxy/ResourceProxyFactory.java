@@ -14,14 +14,14 @@ import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
 @SuppressWarnings("WeakerAccess")
-public final class RestProxyFactory {
+public final class ResourceProxyFactory {
 
-    private static final Logger log = LogManager.getLogManager().getLogger(RestProxyFactory.class.getName());
+    private static final Logger log = LogManager.getLogManager().getLogger(ResourceProxyFactory.class.getName());
 
-    private RestConfiguration restConfiguration;
+    private ResourceProxyConfiguration resourceProxyConfiguration;
 
-    public RestProxyFactory(RestConfiguration restConfiguration) {
-        this.restConfiguration = restConfiguration;
+    public ResourceProxyFactory(ResourceProxyConfiguration resourceProxyConfiguration) {
+        this.resourceProxyConfiguration = resourceProxyConfiguration;
     }
 
     @SuppressWarnings("unchecked")
@@ -30,13 +30,13 @@ public final class RestProxyFactory {
         try {
 
             // configure the client builder
-            createClient(restConfiguration);
+            createClient(resourceProxyConfiguration);
 
-            Client client = createClient(restConfiguration);
-            return WebResourceFactory.newResource(restConfiguration.getProxyClass(), client.target(restConfiguration.getUrl()));
+            Client client = createClient(resourceProxyConfiguration);
+            return WebResourceFactory.newResource(resourceProxyConfiguration.getProxyClass(), client.target(resourceProxyConfiguration.getUrl()));
 
         } catch (Exception e) {
-            log.log(Level.SEVERE, "Unable to create proxy " + restConfiguration.getProxyClass().getSimpleName() +
+            log.log(Level.SEVERE, "Unable to create proxy " + resourceProxyConfiguration.getProxyClass().getSimpleName() +
                     ": " + e.getMessage(), e);
             return null;
         }
@@ -46,10 +46,10 @@ public final class RestProxyFactory {
     /**
      * Creates the client builder
      *
-     * @param configuration {@link RestConfiguration}
+     * @param configuration {@link ResourceProxyConfiguration}
      * @return {@link Client}
      */
-    private Client createClient(RestConfiguration configuration) {
+    private Client createClient(ResourceProxyConfiguration configuration) {
 
         ClientConfig clientConfig = new ClientConfig();
         clientConfig.register(configuration.getProxyClass());
@@ -73,7 +73,7 @@ public final class RestProxyFactory {
         try {
             client.target(new URI(configuration.getUrl()));
         } catch (URISyntaxException e) {
-            log.log(Level.SEVERE, "Invalid URI for proxy: '" + restConfiguration.getProxyClass().getName() + "'", e);
+            log.log(Level.SEVERE, "Invalid URI for proxy: '" + resourceProxyConfiguration.getProxyClass().getName() + "'", e);
         }
 
         return client;
