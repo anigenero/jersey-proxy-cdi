@@ -43,7 +43,7 @@ public class ResourceProxyBean implements Bean, Serializable {
 
     @Override
     public Set<Annotation> getQualifiers() {
-        return new HashSet<>(Arrays.asList((Annotation) () -> Default.class, () -> Any.class));
+        return new HashSet<>(Arrays.asList(() -> Default.class, () -> Any.class));
     }
 
     @Override

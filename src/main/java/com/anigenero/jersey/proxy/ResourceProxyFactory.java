@@ -13,7 +13,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 
 @SuppressWarnings("WeakerAccess")
-public final class ResourceProxyFactory {
+final class ResourceProxyFactory {
 
     private static final Logger log = LogManager.getLogger(ResourceProxyFactory.class);
 

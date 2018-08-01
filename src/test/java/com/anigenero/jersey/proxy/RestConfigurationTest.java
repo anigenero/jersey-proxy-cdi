@@ -1,4 +1,12 @@
 package com.anigenero.jersey.proxy;
 
-public class RestConfigurationTest {
+import org.junit.jupiter.api.Test;
+
+class RestConfigurationTest {
+
+    @Test
+    void testConfiguration() {
+
+    }
+
 }
