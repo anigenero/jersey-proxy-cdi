@@ -1,5 +1,8 @@
 package com.anigenero.jersey.proxy;
 
+import com.anigenero.cdi.configuration.ConfigurationException;
+import com.anigenero.cdi.configuration.ConfigurationProducer;
+import com.anigenero.jersey.proxy.util.BeanUtil;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -9,6 +12,7 @@ import javax.enterprise.inject.Default;
 import javax.enterprise.inject.spi.Bean;
 import javax.ws.rs.client.ClientRequestFilter;
 import javax.ws.rs.client.ClientResponseFilter;
+import java.io.ObjectInputFilter;
 import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
@@ -83,7 +87,11 @@ public class ResourceProxyBean implements Bean, Serializable {
 
     @Override
     public Object create(CreationalContext creationalContext) {
-        return getProxy(getBeanClass());
+        try {
+            return getProxy(getBeanClass());
+        } catch (ConfigurationException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
@@ -97,16 +105,24 @@ public class ResourceProxyBean implements Bean, Serializable {
      * @param proxyClass {@link Class} the proxy class
      * @return <T>
      */
-    private <T> T getProxy(Class<T> proxyClass) {
+    @SuppressWarnings("unchecked")
+    private <T> T getProxy(Class<T> proxyClass) throws ConfigurationException {
 
+        final ConfigurationProducer configurationProducer = BeanUtil.getBean(ConfigurationProducer.class);
 
         ResourceProxy proxyAnnotation = proxyClass.getAnnotation(ResourceProxy.class);
 
         final String proxyName = proxyAnnotation.name();
-        String url = getProxyValue(proxyAnnotation.url());
-        if (url == null || url.isEmpty()) {
-            log.error("Could not create proxy for '{}' because no url is set", proxyName);
-            return null;
+        String url = proxyAnnotation.url();
+        if (url.isEmpty()) {
+
+            url = configurationProducer.getString("rest." + proxyName + ".url", true);
+
+            if (url == null || url.isEmpty()) {
+                log.error("Could not create proxy for '{}' because no url is set", proxyName);
+                return null;
+            }
+
         }
 
         ResourceProxyConfiguration.Builder builder = new ResourceProxyConfiguration.Builder(proxyClass);
@@ -131,41 +147,10 @@ public class ResourceProxyBean implements Bean, Serializable {
             builder.setTimeout(proxyAnnotation.timeout());
         }
 
-        builder.setUrl(proxyAnnotation.url());
+        builder.setUrl(url);
         builder.setCredentialsProvider(proxyAnnotation.credentialsProvider());
 
-        return createProxy(proxyClass, builder.build());
-
-    }
-
-    /**
-     * Gets the proxy value for the specified string
-     *
-     * @param value {@link String}
-     * @return {@link String}
-     */
-    private String getProxyValue(String value) {
-        return value;
-    }
-
-    /**
-     * Creates the proxy
-     *
-     * @param proxyClass                 {@link Class} the proxy class
-     * @param resourceProxyConfiguration {@link ResourceProxyConfiguration}
-     * @return T
-     */
-    @SuppressWarnings("unchecked")
-    private <T> T createProxy(Class<T> proxyClass, ResourceProxyConfiguration resourceProxyConfiguration) {
-
-        // createProxy the URL and ensure that it's not empty
-        String url = proxyClass.getAnnotation(ResourceProxy.class).url();
-        if (url.isEmpty()) {
-            log.error("Unable to create RESTEasy proxy {}: Missing URL pefix", proxyClass.getSimpleName());
-            return null;
-        }
-
-        return (T) new ResourceProxyFactory(resourceProxyConfiguration).build();
+        return (T) new ResourceProxyFactory(builder.build()).build();
 
     }
 
